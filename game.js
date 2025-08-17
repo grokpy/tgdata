@@ -57,7 +57,7 @@ function adjustCanvasSize() {
     render(); // Updated to call render without arguments
 }
 
-export function initGame() {
+function initGame() {
     console.log('Initializing game...');
     if (state.isGameInitialized) {
         console.log('Game already initialized, skipping...');
@@ -109,3 +109,7 @@ createShapeCanvas('circle', '#55ff55', state.shapeCanvases);
 createShapeCanvas('triangle', '#5555ff', state.shapeCanvases);
 createShapeCanvas('diamond', '#ffaa00', state.shapeCanvases);
 createShapeCanvas('pentagon', '#ff55ff', state.shapeCanvases);
+
+
+// Экспортируем initGame для вызова из index.html
+export default initGame;
