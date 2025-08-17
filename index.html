@@ -11,6 +11,7 @@
         #stub { display: none; color: red; }
         #game-container { display: none; }
         #user-data { margin-bottom: 20px; }
+        #debug { color: blue; margin-top: 20px; display: none; }
     </style>
 </head>
 <body>
@@ -32,45 +33,69 @@
         <div id="log-container"></div>
         <div id="notification" class="hidden"></div>
     </div>
+    <div id="debug">
+        <h3>Отладка:</h3>
+        <pre id="debug-log"></pre>
+    </div>
 
     <script>
-        // Проверяем наличие Telegram Web App
+        function logDebug(message) {
+            console.log(message);
+            const debugLog = document.getElementById('debug-log');
+            debugLog.textContent += message + '\n';
+            document.getElementById('debug').style.display = 'block';
+        }
+
+        logDebug('Скрипт запущен. Проверка Telegram Web App...');
+
         if (window.Telegram && window.Telegram.WebApp) {
             try {
-                // Инициализируем Web App
+                logDebug('Telegram Web App обнаружен. Инициализация...');
                 window.Telegram.WebApp.ready();
 
-                // Получаем данные пользователя
-                const user = window.Telegram.WebApp.initDataUnsafe?.user || {};
+                const user = window.Telegram.WebApp.initDataUnsafe?.user;
 
-                // Создаем переменную с данными пользователя
-                const userData = {
-                    id: user.id || 'Неизвестно',
-                    first_name: user.first_name || 'Неизвестно',
-                    last_name: user.last_name || 'Неизвестно',
-                    username: user.username || 'Неизвестно',
-                    language_code: user.language_code || 'Неизвестно'
-                };
+                // Проверяем, получены ли данные пользователя
+                if (user) {
+                    const userData = {
+                        id: user.id || 'Неизвестно',
+                        first_name: user.first_name || 'Неизвестно',
+                        last_name: user.last_name || 'Неизвестно',
+                        username: user.username || 'Неизвестно',
+                        language_code: user.language_code || 'Неизвестно'
+                    };
 
-                // Выводим данные пользователя
-                document.getElementById('user-info').textContent = JSON.stringify(userData, null, 2);
+                    document.getElementById('user-info').textContent = JSON.stringify(userData, null, 2);
+                    logDebug('Данные пользователя получены и отображены.');
 
-                // Показываем игру и скрываем заглушку
-                document.getElementById('game-container').style.display = 'block';
-                document.getElementById('stub').style.display = 'none';
+                    document.getElementById('game-container').style.display = 'block';
+                    document.getElementById('stub').style.display = 'none';
 
-                // Загружаем скрипт игры динамически
-                const gameScript = document.createElement('script');
-                gameScript.type = 'module';
-                gameScript.src = 'game.js';
-                document.body.appendChild(gameScript);
+                    // Динамический импорт и запуск игры
+                    import('./game.js')
+                        .then(module => {
+                            logDebug('game.js успешно импортирован.');
+                            if (typeof module.default === 'function') {
+                                module.default(); // Если game.js экспортирует функцию
+                            } else {
+                                logDebug('game.js запущен автоматически (без экспорта функции).');
+                            }
+                        })
+                        .catch(error => {
+                            logDebug('Ошибка при импорте game.js: ' + error.message);
+                        });
+                } else {
+                    logDebug('Данные пользователя не получены. Показ заглушки.');
+                    document.getElementById('stub').style.display = 'block';
+                    document.getElementById('game-container').style.display = 'none';
+                }
             } catch (error) {
-                console.error('Ошибка Telegram Web App:', error);
+                logDebug('Ошибка в Telegram Web App: ' + error.message);
                 document.getElementById('stub').style.display = 'block';
                 document.getElementById('game-container').style.display = 'none';
             }
         } else {
-            // Показываем заглушку для обычного браузера
+            logDebug('Telegram Web App не обнаружен. Показ заглушки.');
             document.getElementById('stub').style.display = 'block';
             document.getElementById('game-container').style.display = 'none';
         }
