@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Доступ только через Telegram</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
+        #stub { display: none; color: red; }
+        #content { display: none; }
+    </style>
+</head>
+<body>
+    <div id="stub">
+        <h1>Доступ запрещен</h1>
+        <p>Вход на этот сайт возможен только через бота в Telegram. Пожалуйста, откройте сайт из Telegram-бота.</p>
+    </div>
+    <div id="content">
+        <h1>Добро пожаловать!</h1>
+        <p>Данные пользователя из Telegram:</p>
+        <pre id="userData"></pre>
+    </div>
+
+    <script>
+        // Проверяем, открыт ли сайт из Telegram Web App
+        if (window.Telegram && window.Telegram.WebApp) {
+            // Инициализируем Web App
+            window.Telegram.WebApp.ready();
+
+            // Получаем данные пользователя
+            const user = window.Telegram.WebApp.initDataUnsafe.user;
+
+            // Создаем переменную с данными пользователя
+            const userData = {
+                id: user ? user.id : 'Неизвестно',
+                first_name: user ? user.first_name : 'Неизвестно',
+                last_name: user ? user.last_name : 'Неизвестно',
+                username: user ? user.username : 'Неизвестно',
+                language_code: user ? user.language_code : 'Неизвестно'
+            };
+
+            // Выводим данные на страницу
+            document.getElementById('userData').textContent = JSON.stringify(userData, null, 2);
+
+            // Показываем контент и скрываем заглушку
+            document.getElementById('content').style.display = 'block';
+            document.getElementById('stub').style.display = 'none';
+        } else {
+            // Показываем заглушку
+            document.getElementById('stub').style.display = 'block';
+            document.getElementById('content').style.display = 'none';
+        }
+    </script>
+</body>
+</html>
