@@ -1,81 +1,117 @@
-<!DOCTYPE html>
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Доступ только через Telegram</title>
-    <style>
-        body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
-        #stub { display: none; color: red; }
-        #content { display: none; }
-        #debug { display: none; color: blue; }
-    </style>
-    <!-- Подключаем скрипт Telegram Web App -->
+    <title>Match-3 Game (Доступ через Telegram)</title>
+    <link rel="stylesheet" href="style.css">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
+        #stub { display: none; color: red; }
+        #game-container { display: none; }
+        #user-data { margin-bottom: 20px; }
+    </style>
 </head>
 <body>
     <div id="stub">
         <h1>Доступ запрещен</h1>
         <p>Вход на этот сайт возможен только через бота в Telegram. Пожалуйста, откройте сайт из Telegram-бота.</p>
     </div>
-    <div id="content">
-        <h1>Добро пожаловать!</h1>
-        <p>Данные пользователя из Telegram:</p>
-        <pre id="userData"></pre>
-    </div>
-    <div id="debug">
-        <h2>Отладочная информация</h2>
-        <pre id="debugInfo"></pre>
+    <div id="game-container">
+        <div id="user-data">
+            <h2>Данные пользователя:</h2>
+            <pre id="user-info"></pre>
+        </div>
+        <div id="score">
+            Score: <span id="score-value">0</span><br>
+            Task Score: <span id="task-score-value">0</span>
+        </div>
+        <div id="task">Task: <span id="task-description">Loading...</span></div>
+        <canvas id="game-canvas"></canvas>
+        <div id="log-container"></div>
+        <div id="notification" class="hidden"></div>
     </div>
 
     <script>
-        // Функция для отображения отладочной информации
-        function logDebug(message) {
-            const debugInfo = document.getElementById('debugInfo');
-            debugInfo.textContent += message + '\n';
-            document.getElementById('debug').style.display = 'block';
-        }
-
         // Проверяем наличие Telegram Web App
         if (window.Telegram && window.Telegram.WebApp) {
             try {
                 // Инициализируем Web App
                 window.Telegram.WebApp.ready();
-                logDebug('Telegram Web App инициализирован');
 
                 // Получаем данные пользователя
-                const user = window.Telegram.WebApp.initDataUnsafe?.user;
+                const user = window.Telegram.WebApp.initDataUnsafe?.user || {};
 
-                // Проверяем, получены ли данные пользователя
-                if (user) {
-                    // Создаем переменную с данными пользователя
-                    const userData = {
-                        id: user.id || 'Неизвестно',
-                        first_name: user.first_name || 'Неизвестно',
-                        last_name: user.last_name || 'Неизвестно',
-                        username: user.username || 'Неизвестно',
-                        language_code: user.language_code || 'Неизвестно'
-                    };
+                // Создаем переменную с данными пользователя
+                const userData = {
+                    id: user.id || 'Неизвестно',
+                    first_name: user.first_name || 'Неизвестно',
+                    last_name: user.last_name || 'Неизвестно',
+                    username: user.username || 'Неизвестно',
+                    language_code: user.language_code || 'Неизвестно'
+                };
 
-                    // Выводим данные на страницу
-                    document.getElementById('userData').textContent = JSON.stringify(userData, null, 2);
-                    document.getElementById('content').style.display = 'block';
-                    document.getElementById('stub').style.display = 'none';
-                    logDebug('Данные пользователя успешно получены');
-                } else {
-                    logDebug('Данные пользователя не получены');
-                    document.getElementById('stub').style.display = 'block';
-                    document.getElementById('content').style.display = 'none';
-                }
+                // Выводим данные пользователя
+                document.getElementById('user-info').textContent = JSON.stringify(userData, null, 2);
+
+                // Показываем игру и скрываем заглушку
+                document.getElementById('game-container').style.display = 'block';
+                document.getElementById('stub').style.display = 'none';
+
+                // Загружаем скрипт игры динамически
+                const gameScript = document.createElement('script');
+                gameScript.type = 'module';
+                gameScript.src = 'game.js';
+                document.body.appendChild(gameScript);
             } catch (error) {
-                logDebug('Ошибка при инициализации Telegram Web App: ' + error.message);
+                console.error('Ошибка Telegram Web App:', error);
                 document.getElementById('stub').style.display = 'block';
-                document.getElementById('content').style.display = 'none';
+                document.getElementById('game-container').style.display = 'none';
             }
         } else {
-            logDebug('Telegram Web App не обнаружен. Открыто в обычном браузере.');
+            // Показываем заглушку для обычного браузера
             document.getElementById('stub').style.display = 'block';
-            document.getElementById('content').style.display = 'none';
+            document.getElementById('game-container').style.display = 'none';
         }
     </script>
 </body>
