@@ -57,7 +57,7 @@ function adjustCanvasSize() {
     render(); // Updated to call render without arguments
 }
 
-function initGame() {
+export function initGame() {
     console.log('Initializing game...');
     if (state.isGameInitialized) {
         console.log('Game already initialized, skipping...');
